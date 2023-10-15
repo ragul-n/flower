@@ -65,7 +65,7 @@ class FedAdam(FedOpt):
         initial_parameters: Parameters,
         fit_metrics_aggregation_fn: Optional[MetricsAggregationFn] = None,
         evaluate_metrics_aggregation_fn: Optional[MetricsAggregationFn] = None,
-        eta: float = 1e-1,
+        eta: : Union[float, Callable[[int], float]]) -> float = 1e-1,
         eta_l: float = 1e-1,
         beta_1: float = 0.9,
         beta_2: float = 0.99,
@@ -103,6 +103,7 @@ class FedAdam(FedOpt):
             Metrics aggregation function, optional.
         eta : float, optional
             Server-side learning rate. Defaults to 1e-1.
+            Could be a floating point or a callable that takes the server_round as input and outputs the learning rate (for learning rate scheduling. 
         eta_l : float, optional
             Client-side learning rate. Defaults to 1e-1.
         beta_1 : float, optional
@@ -172,12 +173,17 @@ class FedAdam(FedOpt):
             self.beta_2 * x + (1 - self.beta_2) * np.multiply(y, y)
             for x, y in zip(self.v_t, delta_t)
         ]
-
-        new_weights = [
-            x + self.eta * y / (np.sqrt(z) + self.tau)
-            for x, y, z in zip(self.current_weights, self.m_t, self.v_t)
-        ]
-
+        if type(self.eta)==type(0.1):
+            new_weights = [
+                x + self.eta * y / (np.sqrt(z) + self.tau)
+                for x, y, z in zip(self.current_weights, self.m_t, self.v_t)
+            ]
+        else:
+            new_weights = [
+                x + self.eta(server_round) * y / (np.sqrt(z) + self.tau)
+                for x, y, z in zip(self.current_weights, self.m_t, self.v_t)
+            ]
+            
         self.current_weights = new_weights
 
         return ndarrays_to_parameters(self.current_weights), metrics_aggregated
